@@ -1,0 +1,141 @@
+######################
+### Project Set Up ###
+######################
+
+# python3 code
+# import needed libraries
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+
+# set file paths, group a : new ad, group b : current ad
+file_a = 'NewAd.csv'
+file_b = 'CurrentAd.csv'
+
+# read in data into dataframes 
+group_a = pd.read_csv(file_a)
+group_b = pd.read_csv(file_b)
+
+# set index to data index
+group_a.set_index('index',inplace=True)
+group_b.set_index('index',inplace=True)
+
+# Create new column identifying which group each user is in
+group_a['Group'] = 'New'
+group_b['Group'] = 'Control'
+
+# Join tables into single dataframe
+users_df = pd.concat([group_a,group_b])
+
+########################
+### Data Exploration ###
+########################
+
+# Check for complete data
+users_df.isnull().sum()
+
+# Explore values and extents of data in the data frame
+print('Max values\n',users_df.max(),'\n')
+print('Min values\n',users_df.min())
+users_df.head()
+users_df.tail()
+users_df.describe()
+users_df['num_exercises'].median()
+users_df['Click'].value_counts()
+users_df['num_exercises'].value_counts()
+
+# investigate new ad user group
+group_a.head()
+group_a.tail()
+group_a.describe()
+group_a['num_exercises'].median()
+group_a['Click'].value_counts()
+group_a['num_exercises'].value_counts()
+
+# investigate control user group
+group_b.head()
+group_b.tail()
+group_b.describe()
+group_b['num_exercises'].median()
+group_b['Click'].value_counts()
+group_b['num_exercises'].value_counts()
+
+###########################
+### Data Visualizations ###
+###########################
+
+# Set seaborn visuals
+sns.set_context('notebook',font_scale=2)
+sns.set_style("whitegrid")
+sns.set_palette([ "#95a5a6", "#2ecc71"])
+
+# count plots by user group of click/no click
+cnt_plt = sns.countplot(x='Group',hue='Click',data=users_df)
+cnt_plt.set_title("Clicks by Group\n")
+cnt_plt.set_xlabel("User Groups")
+cnt_plt.set_ylabel("User Count")
+cnt_plt.legend(["No Click","Click"],bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+cnt_plt.set_ylim(0,15000)
+plt.show()
+
+# visualize the difference between user groups
+# distribution plot of number of exercises 
+boxplt_b = sns.distplot(group_b[group_b['Click']==0]['num_exercises'],kde=False)
+boxplt_b = sns.distplot(group_b[group_b['Click']==1]['num_exercises'],kde=False)
+boxplt_b.set_title("User Experience Distribution: Control Group\n")
+boxplt_b.set_xlabel("CodeCademy Exercises Completed")
+boxplt_b.set_ylabel("User Count")
+boxplt_b.legend(["No Click","Click"],bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+boxplt_b.set_ylim(0,700)
+plt.show()
+
+boxplt_a = sns.distplot(group_a[group_a['Click']==0]['num_exercises'],kde=False)
+boxplt_a = sns.distplot(group_a[group_a['Click']==1]['num_exercises'],kde=False)
+boxplt_a.set_title("User Experience Distribution: New Ad\n")
+boxplt_a.set_xlabel("CodeCademy Exercises Completed")
+boxplt_a.set_ylabel("User Count")
+boxplt_a.legend(["No Click","Click"],bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+boxplt_a.set_ylim(0,7000)
+plt.show()
+
+# boxplot visualization of user groups
+sns.boxplot(x = users_df['Group'],y=users_df['num_exercises'])
+
+############################
+### Chi Squared Analysis ###
+############################
+
+# create a summary table of clicks by user group
+chisq_data = pd.crosstab(users_df['Group'], users_df['Click'])
+print(chisq_data)
+
+# run chi2 test on the cross tab summary table data
+stats.chi2_contingency(chisq_data)
+# second value = p-value:: p <0.001
+
+####################################
+### Multiple Logistic Regression ###
+####################################
+
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+
+# define function Click = num_exercises + Group
+# C - categorical variable
+f = 'Click ~ num_exercises + C(Group)'
+
+# run logistic regression 
+logitfit = smf.logit(formula = f, data=users_df).fit()
+
+# show logistic regression summary 
+logitfit.summary()
+
+# Step down analysis to check for multi-colinearity
+# drop the 'Group' variable
+f2 = 'Click ~ num_exercises'
+# run logistic regression 
+logitfit2 = smf.logit(formula = f2, data=users_df).fit()
+# show logistic regression summary 
+logitfit2.summary()
